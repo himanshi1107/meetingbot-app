@@ -4,7 +4,9 @@ pipeline {
     environment {
         AWS_REGION = 'us-west-1'
         AWS_ACCOUNT_ID = '008585377828'
-        IMAGE_NAME = 'meetingbot-example-app'
+        EXAMPLE_APP_IMAGE = 'meetingbot-example-app'
+        SERVER_IMAGE = 'meetingbot-server'
+        APP_VERSION = 'v1.0.1'
     }
 
     stages {
@@ -18,7 +20,15 @@ pipeline {
         stage('Build Docker Image'){
             steps{
                 sh '''
-                    docker build -t ${IMAGE_NAME}:latest src/example-app
+                    docker build -t ${EXAMPLE_APP_IMAGE}:latest src/example-app
+                '''
+            }
+        }
+        
+        stage('Build Server Docker Image') {
+            steps {
+                sh '''
+                    docker build -t ${SERVER_IMAGE}:latest src/server
                 '''
             }
         }
@@ -33,11 +43,14 @@ pipeline {
             }
         }
         
-        stage('Tag Docker Image'){
+        stage('Tag Docker Images'){
             steps{
                 sh '''
-                    docker tag ${IMAGE_NAME}:latest \
-                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest
+                    docker tag ${EXAMPLE_APP_IMAGE}:latest \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${EXAMPLE_APP_IMAGE}:${APP_VERSION}
+
+                    docker tag ${SERVER_IMAGE}:latest \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${SERVER_IMAGE}:latest
                 '''
             }
         }
@@ -45,9 +58,25 @@ pipeline {
             steps{
                 sh '''
                     docker push \
-                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${EXAMPLE_APP_IMAGE}:${APP_VERSION}
+
+                    docker push \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${SERVER_IMAGE}:latest
                 '''
             }
         }
+        
+        stage('Deploy Example App to ECS') {
+            steps {
+                sh '''
+                    aws ecs update-service \
+                      --cluster meetingbot-ec2-jenkins-cluster \
+                      --service meetingbot-example-app-task-service-s85efvrn \
+                      --force-new-deployment \
+                      --region ${AWS_REGION}
+                '''
+            }
+}
+
     }
 }
