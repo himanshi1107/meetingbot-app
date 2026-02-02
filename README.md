@@ -86,5 +86,3 @@ The goal is to showcase a **real-world DevOps workflow** with automated deployme
 **Himanshi Bobde**
 
 
-
-## 🚀 Deployment Flow
